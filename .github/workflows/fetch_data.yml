@@ -1,0 +1,39 @@
+name: Fetch and Process Crypto Data
+
+on:
+  workflow_dispatch: # Manual trigger
+  schedule:
+    - cron: "0 * * * *" # Runs every hour
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pridobivanje kode repozitorija
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Nastavitev Python okolja
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          cache: "poetry"
+
+      - name: Namestitev Poetry
+        run: pip install poetry
+
+      - name: Namestitev odvisnosti
+        run: poetry install --no-interaction --no-root
+
+      - name: Zagon skripte za zajem podatkov
+        run: poetry run python src/data/fetch_save.py
+
+      - name: Shrani spremembe v repozitorij
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add data/raw/crypto_prices.json data/preprocessed/price/*.csv
+          git commit -m "Posodobljeni podatki: $(date '+%Y-%m-%d %H:%M:%S')" || echo "Ni novih sprememb za commit."
+          git push
